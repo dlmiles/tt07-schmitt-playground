@@ -1,0 +1,89 @@
+#!/bin/bash
+#
+#	Extract from PDK the Apache2 licensed verilog back into separate files.
+#
+#	Usage: bash scriptname SKY130_FD_SC_HD__FA_1_V sky130_fd_sc_hd.v > sky130_fd_sc_hd__fa_1.v
+#
+#
+# This script started out as some bash commmands, in a sequence a lot like this:
+#
+# grep -Hn SKY130_FD_SC_HD__FA_1_V $PDK_ROOT/volare/sky130/versions/6d4d11780c40b20ee63cc98e645307a9bf2b2ab8/sky130A/libs.ref/sky130_fd_sc_hd/verilog/sky130_fd_sc_hd.v
+# sky130_fd_sc_hd.v:64897:`ifndef SKY130_FD_SC_HD__FA_1_V
+# sky130_fd_sc_hd.v:64898:`define SKY130_FD_SC_HD__FA_1_V
+# sky130_fd_sc_hd.v:65296:`endif  // SKY130_FD_SC_HD__FA_1_V
+#
+# tail -n +$(expr 64897 - 18) $PDK_ROOT/volare/sky130/versions/6d4d11780c40b20ee63cc98e645307a9bf2b2ab8/sky130A/libs.ref/sky130_fd_sc_hd/verilog/sky130_fd_sc_hd.v | head -n $(expr 65296 - 64897 + 4 + 18) | less
+#
+# validate first line start "/*" for Apache2 license text.
+#
+# validate last line has "EOF"
+#
+
+ifdef=$1
+file=$2
+
+verbose=0
+
+[ $verbose -gt 0 ] && echo "ifdef=$ifdef" 1>&2
+[ $verbose -gt 0 ] && echo "file=$file" 1>&2
+
+if [ ! -f "$file" ]
+then
+	echo "$0: ERROR file=$file does not exist" 1>&2
+	exit 1
+fi
+
+if ! grep -q "$ifdef" "$file"
+then
+	echo "$0: ERROR ifdef=$ifdef not found in file" 1>&2
+	echo "$0: ERROR example looks like \"SKY130_FD_SC_HD__BUF_1_V\"" 1>&2
+	exit 1
+fi
+
+[ $verbose -gt 0 ] && grep -hn "$ifdef" "$file" 1<&2
+
+first_lineno=$(grep -hn "$ifdef" "$file" | cut -d ':' -f1 | head -n 1)
+last_lineno=$(grep -hn "$ifdef" "$file" | cut -d ':' -f1 | tail -n 1)
+
+
+top_extra=18
+bot_extra=4
+
+start_lineno=$(expr $first_lineno - $top_extra)
+end_lineno=$(expr $last_lineno + $bot_extra)
+count_line=$(expr $end_lineno - $start_lineno)
+
+# FIXME sanity check numbers
+
+echo "tail -n +${start_lineno} filename | head -n ${count_line}" 1>&2
+
+tail -n "+${start_lineno}" "$file" | head -n "$count_line"
+
+# FIXME validare output
+
+rc=0
+
+if tail -n "+${start_lineno}" "$file" | head -n "$count_line" | head -n 1 | grep -q "^/*"
+then
+	echo "$0: PASS: HEAD top line looks ok" 1>&2
+else
+	echo "$0: FAIL: line1 does not look like expected \"/*\" sequence" 1>&2
+	rc=1
+fi
+
+if tail -n "+${start_lineno}" "$file" | head -n "$count_line" | tail -n 1 | fgrep -q -- "---EOF---"
+then
+	echo "$0: PASS: TAIL last line looks ok" 1>&2
+else
+	echo "$0: FAIL: line1 does not look like expected \"---EOF---\" sequence" 1>&2
+	rc=1
+fi
+
+if [ $rc -eq 0 ]
+then
+	echo "$0: SUCCESS rc=$rc" 1>&2
+else
+	echo "$0: ERROR rc=$rc see above" 1>&2
+fi
+
+exit $rc
