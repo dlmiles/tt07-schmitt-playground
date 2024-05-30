@@ -30,6 +30,24 @@ set ::env(LINTER_INCLUDE_PDK_MODELS) 1
 # https://tinytapeout.com/faq/#how-can-i-map-an-additional-external-clock-to-one-of-the-gpios
 set ::env(CLOCK_PORT) {clk}
 
+# This is used to inhibit the drive level resizer for certain cells.
+# This is also used to inhibit the addition of a buffer insertion on an external output port.
+#set ::env(RSZ_DONT_TOUCH) ""
+set ::env(RSZ_DONT_TOUCH_RX) "(_dont_touch|.por_0_dfxtp_2.Q|\\.por_1_dfxtp_2\\.Q|oa_por\\\[0]|oa_por\\\[1])$"
+
+# Deprecated for RSZ_DONT_TOUCH_RX, but it did not work as expected
+#set ::env(UNBUFFER_NETS) "(oa_por\[0\]|oa_por\[1\])$"
+
+set ::env(DONT_BUFFER_PORTS) "oa_por\[0];oa_por\[1];\\amux_ctrl.por_0_dfxtp_2.Q;\\amux_ctrl.por_1_dfxtp_2.Q;amux_ctrl.por_0_dfxtp_2.Q;amux_ctrl.por_1_dfxtp_2.Q"
+
+# To check the above is working we expect to use:
+#  grep --color -A2 "por_._dfxtp" /work/runs/wokwi/results/routing/tt_um_dlmiles_schmitt_playground.nl.v # expect 3 cells, dfxtp_2
+#  grep --color oa_ena /work/runs/wokwi/results/routing/tt_um_dlmiles_schmitt_playground.nl.v # expect 1 cell, buf_4
+#  grep --color async_nor2 /work/runs/wokwi/results/routing/tt_um_dlmiles_schmitt_playground.nl.v # expect 1 cell, nor2_2
+#  grep --color async_and3 /work/runs/wokwi/results/routing/tt_um_dlmiles_schmitt_playground.nl.v # expect 1 cell, and3_2
+#
+# You are checking the "buf_4" in the instance name, matches the cell type and drive level in netlist
+
 # Configuration docs: https://openlane.readthedocs.io/en/latest/reference/configuration.html
 
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
